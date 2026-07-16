@@ -16,3 +16,4 @@ public/soundfont
 public/alphatab
 public/assets/alphaTab.worker.mjs
 public/assets/alphaTab.worklet.mjs
+public/assets/alphaTab.core.mjs

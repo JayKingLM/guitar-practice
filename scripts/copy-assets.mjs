@@ -58,7 +58,7 @@ console.log(`[copy-assets] alphaTab scripts -> ${alphatabDir}`);
 // worker and audio worklet must also exist beside that chunk in production.
 const viteAssetsDir = resolve(root, 'public/assets');
 mkdirSync(viteAssetsDir, { recursive: true });
-for (const f of ['alphaTab.worker.mjs', 'alphaTab.worklet.mjs']) {
+for (const f of ['alphaTab.core.mjs', 'alphaTab.worker.mjs', 'alphaTab.worklet.mjs']) {
   const from = resolve(pkgDist, f);
   if (existsSync(from)) copyFileSync(from, resolve(viteAssetsDir, f));
 }
