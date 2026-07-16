@@ -10,9 +10,11 @@ import {
   Maximize2,
   Minimize2,
   Music2,
+  PanelTop,
   Pause,
   Play,
   RotateCcw,
+  Rows3,
   Settings2,
   SlidersHorizontal,
   TimerReset,
@@ -42,12 +44,7 @@ function isTypingTarget(target: EventTarget | null) {
 
 function applyScoreDisplayPreferences(tex: string, settings: ScoreSettings | null) {
   if (!settings) return tex;
-  const result = tex.replace(
-    /showDiagram\s+(?:true|false)/g,
-    `showDiagram ${settings.showChordDiagrams}`,
-  );
-
-  return result
+  return tex
     .split(/(?=^[\t ]*\\track\b)/gm)
     .map((trackBlock) => {
       const isNumberedTrack = /\\staff\s*\{[^}]*\bnumbered\b[^}]*\}/.test(trackBlock);
@@ -109,13 +106,14 @@ export function PlayerPage() {
 
   const displayData = useMemo(
     () => typeof data === 'string' ? applyScoreDisplayPreferences(data, settings) : data,
-    [data, settings?.showChordDiagrams, settings?.showLyrics, settings?.showMelody],
+    [data, settings?.showLyrics, settings?.showMelody],
   );
 
   const controller = useAlphaTab({
     data: displayData,
     isAlphaTex: record?.isAlphaTex ?? false,
     renderNumberedTracks: settings?.showMelody ?? true,
+    chordDiagramsInScore: settings?.showChordDiagrams ?? true,
     onMeta: useCallback((meta: ScoreMeta) => {
       setNativeBpm(meta.tempo ?? null);
     }, []),
@@ -389,7 +387,27 @@ export function PlayerPage() {
               updateSettings({ visibleSystems, zoom: Math.max(0.58, 1.24 - visibleSystems * 0.08) });
             }} />
           </div>
-          <VisibilityToggle label="和弦指法图" checked={settings.showChordDiagrams} onClick={() => updateSettings({ showChordDiagrams: !settings.showChordDiagrams })} />
+          <div className="setting-block chord-layout-setting">
+            <div className="setting-label"><span>和弦图位置</span></div>
+            <div className="segmented-control" aria-label="和弦图位置">
+              <button
+                className={settings.showChordDiagrams ? '' : 'active'}
+                aria-pressed={!settings.showChordDiagrams}
+                onClick={() => updateSettings({ showChordDiagrams: false })}
+              >
+                <PanelTop size={16} />
+                <span>页首汇总</span>
+              </button>
+              <button
+                className={settings.showChordDiagrams ? 'active' : ''}
+                aria-pressed={settings.showChordDiagrams}
+                onClick={() => updateSettings({ showChordDiagrams: true })}
+              >
+                <Rows3 size={16} />
+                <span>逐小节</span>
+              </button>
+            </div>
+          </div>
           <VisibilityToggle label="数字旋律" checked={settings.showMelody} onClick={() => updateSettings({ showMelody: !settings.showMelody })} />
           <VisibilityToggle label="中文歌词" checked={settings.showLyrics} onClick={() => updateSettings({ showLyrics: !settings.showLyrics })} />
         </aside>

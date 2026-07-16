@@ -71,8 +71,51 @@ export function createAlphaTabApi(opts: CreateApiOptions): alphaTab.AlphaTabApi 
 
   // Respect each staff's explicit notation type (tabs, numbered notation, etc.).
   settings.display.scale = opts.scale ?? 1;
+  settings.display.stretchForce = 1;
   settings.display.layoutMode = alphaTab.LayoutMode.Page;
   settings.display.staveProfile = alphaTab.StaveProfile.Default;
+  settings.display.barsPerRow = opts.element.clientWidth >= 900 ? 4 : -1;
+  settings.display.systemPaddingTop = 6;
+  settings.display.systemPaddingBottom = 6;
+  settings.display.trackStaffPaddingBetween = 0;
+  settings.display.effectBandPaddingBottom = 1;
+  settings.display.lyricLinesPaddingBetween = 2;
+  // The practice header already owns BPM; hiding the duplicate marker leaves
+  // the first chord diagram and section label a clean shared band.
+  settings.notation.elements.set(alphaTab.NotationElement.EffectTempo, false);
+
+  const scoreFont = 'Arial, Microsoft YaHei, PingFang SC, sans-serif';
+  settings.display.resources.numberedNotationFont = new alphaTab.model.Font(
+    scoreFont,
+    18,
+    alphaTab.model.FontStyle.Plain,
+  );
+  settings.display.resources.elementFonts.set(
+    alphaTab.NotationElement.EffectLyrics,
+    new alphaTab.model.Font(
+      scoreFont,
+      16,
+      alphaTab.model.FontStyle.Plain,
+    ),
+  );
+  settings.display.resources.elementFonts.set(
+    alphaTab.NotationElement.EffectChordNames,
+    new alphaTab.model.Font(
+      'Georgia, Microsoft YaHei, serif',
+      13,
+      alphaTab.model.FontStyle.Plain,
+      alphaTab.model.FontWeight.Bold,
+    ),
+  );
+  settings.display.resources.elementFonts.set(
+    alphaTab.NotationElement.ChordDiagrams,
+    new alphaTab.model.Font(
+      'Georgia, Microsoft YaHei, serif',
+      13,
+      alphaTab.model.FontStyle.Plain,
+      alphaTab.model.FontWeight.Bold,
+    ),
+  );
 
   // Player: real synthesized playback + animated cursor following the beat.
   settings.player.enablePlayer = true;

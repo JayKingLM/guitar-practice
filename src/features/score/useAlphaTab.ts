@@ -17,6 +17,8 @@ export interface UseAlphaTabArgs {
   onMeta?: (meta: ScoreMeta) => void;
   /** Render additional tracks that explicitly use numbered notation. */
   renderNumberedTracks?: boolean;
+  /** Place chord diagrams at their beats instead of in the page header. */
+  chordDiagramsInScore?: boolean;
 }
 
 export interface AlphaTabController {
@@ -66,7 +68,13 @@ export interface AlphaTabController {
  * flow through here so React components stay declarative.
  */
 export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
-  const { data, isAlphaTex, onMeta, renderNumberedTracks = true } = args;
+  const {
+    data,
+    isAlphaTex,
+    onMeta,
+    renderNumberedTracks = true,
+    chordDiagramsInScore = false,
+  } = args;
   const hasData = data !== null;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -76,6 +84,8 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
   onMetaRef.current = onMeta;
   const renderNumberedTracksRef = useRef(renderNumberedTracks);
   renderNumberedTracksRef.current = renderNumberedTracks;
+  const chordDiagramsInScoreRef = useRef(chordDiagramsInScore);
+  chordDiagramsInScoreRef.current = chordDiagramsInScore;
 
   const [isReady, setIsReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -105,8 +115,21 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
       return;
     }
     apiRef.current = api;
+    let refinementFrame: number | null = null;
+    const scheduleScoreRefinement = () => {
+      if (refinementFrame !== null) return;
+      refinementFrame = requestAnimationFrame(() => {
+        refinementFrame = null;
+        refineRenderedScore(containerRef.current, api.score);
+      });
+    };
+    const scoreObserver = new MutationObserver(scheduleScoreRefinement);
+    scoreObserver.observe(containerRef.current, { childList: true, subtree: true });
 
     api.scoreLoaded.on((score) => {
+      score.stylesheet.globalDisplayChordDiagramsInScore = chordDiagramsInScoreRef.current;
+      score.stylesheet.globalDisplayChordDiagramsOnTop = !chordDiagramsInScoreRef.current;
+      score.stylesheet.perTrackChordDiagramsOnTop = null;
       setBarCount(score.masterBars.length);
       topSystemRef.current = 0;
 
@@ -132,7 +155,11 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
         /* metadata extraction is best-effort */
       }
     });
-    api.renderFinished.on(() => setIsReady(true));
+    api.renderFinished.on(() => {
+      refineRenderedScore(containerRef.current, api.score);
+      scheduleScoreRefinement();
+      setIsReady(true);
+    });
     api.playerReady.on(() => setIsPlayerReady(true));
     api.playerStateChanged.on((e) => {
       setPlayback(
@@ -175,6 +202,8 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     });
 
     return () => {
+      scoreObserver.disconnect();
+      if (refinementFrame !== null) cancelAnimationFrame(refinementFrame);
       try {
         api.destroy();
       } catch {
@@ -202,7 +231,7 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     } catch (e) {
       setError(e instanceof Error ? e.message : '无法加载曲谱数据');
     }
-  }, [data, isAlphaTex, renderNumberedTracks]);
+  }, [data, isAlphaTex, renderNumberedTracks, chordDiagramsInScore]);
 
   const playPause = useCallback(() => {
     const api = apiRef.current;
@@ -352,4 +381,25 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     selectBars,
     goToBar,
   };
+}
+
+function refineRenderedScore(
+  container: HTMLElement | null,
+  score: alphaTab.model.Score | null,
+) {
+  if (!container) return;
+  const sectionLabels = new Set(
+    score?.masterBars.flatMap((bar) => {
+      const section = bar.section;
+      return section ? [section.marker, section.text].filter(Boolean) : [];
+    }) ?? [],
+  );
+
+  for (const node of container.querySelectorAll<SVGTextElement>('svg text')) {
+    if (node.textContent === '\uE1E7' && !node.hasAttribute('text-anchor')) {
+      node.setAttribute('transform', 'translate(0 -3.5)');
+    } else if (node.textContent && sectionLabels.has(node.textContent)) {
+      node.setAttribute('transform', 'translate(0 -24)');
+    }
+  }
 }
