@@ -1,0 +1,16 @@
+node_modules
+dist
+dist-ssr
+*.local
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
+*.tsbuildinfo
+/tmp/
+
+# alphaTab runtime assets are copied from node_modules by
+# scripts/copy-assets.mjs (predev / prebuild), so they are generated, not source.
+public/font
+public/soundfont
+public/alphatab
