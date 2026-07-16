@@ -127,6 +127,7 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     scoreObserver.observe(containerRef.current, { childList: true, subtree: true });
 
     api.scoreLoaded.on((score) => {
+      score.stylesheet.hideDynamics = true;
       score.stylesheet.globalDisplayChordDiagramsInScore = chordDiagramsInScoreRef.current;
       score.stylesheet.globalDisplayChordDiagramsOnTop = !chordDiagramsInScoreRef.current;
       score.stylesheet.perTrackChordDiagramsOnTop = null;
@@ -397,7 +398,7 @@ function refineRenderedScore(
 
   for (const node of container.querySelectorAll<SVGTextElement>('svg text')) {
     if (node.textContent === '\uE1E7' && !node.hasAttribute('text-anchor')) {
-      node.setAttribute('transform', 'translate(0 -3.5)');
+      node.setAttribute('transform', 'translate(0 -10)');
     } else if (node.textContent && sectionLabels.has(node.textContent)) {
       node.setAttribute('transform', 'translate(0 -24)');
     }

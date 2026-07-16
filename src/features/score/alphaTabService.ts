@@ -83,6 +83,7 @@ export function createAlphaTabApi(opts: CreateApiOptions): alphaTab.AlphaTabApi 
   // The practice header already owns BPM; hiding the duplicate marker leaves
   // the first chord diagram and section label a clean shared band.
   settings.notation.elements.set(alphaTab.NotationElement.EffectTempo, false);
+  settings.notation.elements.set(alphaTab.NotationElement.EffectDynamics, false);
 
   const scoreFont = 'Arial, Microsoft YaHei, PingFang SC, sans-serif';
   settings.display.resources.numberedNotationFont = new alphaTab.model.Font(
