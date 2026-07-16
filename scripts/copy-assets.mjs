@@ -1,14 +1,13 @@
 // Copies alphaTab runtime assets into public/ so they are served at stable URLs
 // in dev and production.
 //
-// Why we copy the script file too:
+// Why we copy the script files too:
 //   alphaTab spins up a web worker for layout and an audio worklet for playback.
 //   Without the official (currently broken) Vite plugin, Vite does not statically
 //   detect alphaTab's indirect `new Worker(new URL('./alphaTab.worker.mjs', import.meta.url))`
-//   call, so those worker files never make it into the build. alphaTab's fallback
-//   path uses `settings.core.scriptFile` (driven by window.ALPHATAB_ROOT) to load a
-//   self-contained classic worker via importScripts. We serve that script from
-//   /alphatab/alphaTab.js and the ESM worker/worklet siblings alongside it.
+//   call, so those worker files never make it into the build. The bundled module
+//   resolves them beside Vite's generated JS chunk in /assets, while alphaTab's
+//   classic fallback resolves them from /alphatab. We provide both locations.
 //
 // Runs automatically via the "predev"/"prebuild" npm scripts.
 import { cpSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
@@ -54,3 +53,13 @@ for (const f of scriptFiles) {
   copyFileSync(from, resolve(alphatabDir, f));
 }
 console.log(`[copy-assets] alphaTab scripts -> ${alphatabDir}`);
+
+// 3. Vite keeps alphaTab's import.meta.url inside an /assets chunk, so its ESM
+// worker and audio worklet must also exist beside that chunk in production.
+const viteAssetsDir = resolve(root, 'public/assets');
+mkdirSync(viteAssetsDir, { recursive: true });
+for (const f of ['alphaTab.worker.mjs', 'alphaTab.worklet.mjs']) {
+  const from = resolve(pkgDist, f);
+  if (existsSync(from)) copyFileSync(from, resolve(viteAssetsDir, f));
+}
+console.log(`[copy-assets] alphaTab worker assets -> ${viteAssetsDir}`);
