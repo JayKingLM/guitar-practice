@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import * as alphaTab from '@coderline/alphatab';
 import type { ScoreMeta, PlaybackState } from '@/types';
-import { createAlphaTabApi, barRangeToPlaybackRange } from './alphaTabService';
+import {
+  createAlphaTabApi,
+  barRangeToPlaybackRange,
+  prepareAlphaTexForRendering,
+} from './alphaTabService';
 import { extractMeta } from './metadata';
 
 export interface UseAlphaTabArgs {
@@ -11,6 +15,8 @@ export interface UseAlphaTabArgs {
   isAlphaTex: boolean;
   /** Callback when metadata is parsed from the loaded score. */
   onMeta?: (meta: ScoreMeta) => void;
+  /** Render additional tracks that explicitly use numbered notation. */
+  renderNumberedTracks?: boolean;
 }
 
 export interface AlphaTabController {
@@ -60,7 +66,7 @@ export interface AlphaTabController {
  * flow through here so React components stay declarative.
  */
 export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
-  const { data, isAlphaTex, onMeta } = args;
+  const { data, isAlphaTex, onMeta, renderNumberedTracks = true } = args;
   const hasData = data !== null;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,6 +74,8 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
   const apiRef = useRef<alphaTab.AlphaTabApi | null>(null);
   const onMetaRef = useRef(onMeta);
   onMetaRef.current = onMeta;
+  const renderNumberedTracksRef = useRef(renderNumberedTracks);
+  renderNumberedTracksRef.current = renderNumberedTracks;
 
   const [isReady, setIsReady] = useState(false);
   const [isPlayerReady, setIsPlayerReady] = useState(false);
@@ -101,6 +109,23 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     api.scoreLoaded.on((score) => {
       setBarCount(score.masterBars.length);
       topSystemRef.current = 0;
+
+      if (renderNumberedTracksRef.current) {
+        const visibleTracks = score.tracks.filter(
+          (track, index) =>
+            index === 0 || track.staves.some((staff) => staff.showNumbered),
+        );
+        if (visibleTracks.length > 1) {
+          // scoreLoaded fires while alphaTab is still finalizing MIDI and bounds.
+          // Defer the second render so multi-track cursor data is complete first.
+          queueMicrotask(() => {
+            if (apiRef.current === api && api.score === score) {
+              api.renderTracks(visibleTracks);
+            }
+          });
+        }
+      }
+
       try {
         onMetaRef.current?.(extractMeta(score));
       } catch {
@@ -170,14 +195,14 @@ export function useAlphaTab(args: UseAlphaTabArgs): AlphaTabController {
     setCurrentBar(1);
     try {
       if (isAlphaTex && typeof data === 'string') {
-        api.tex(data);
+        api.tex(prepareAlphaTexForRendering(data));
       } else if (data instanceof ArrayBuffer) {
         api.load(new Uint8Array(data));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : '无法加载曲谱数据');
     }
-  }, [data, isAlphaTex]);
+  }, [data, isAlphaTex, renderNumberedTracks]);
 
   const playPause = useCallback(() => {
     const api = apiRef.current;

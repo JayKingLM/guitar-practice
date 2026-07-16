@@ -42,22 +42,29 @@ function isTypingTarget(target: EventTarget | null) {
 
 function applyScoreDisplayPreferences(tex: string, settings: ScoreSettings | null) {
   if (!settings) return tex;
-  let result = tex.replace(
+  const result = tex.replace(
     /showDiagram\s+(?:true|false)/g,
     `showDiagram ${settings.showChordDiagrams}`,
   );
 
-  result = result.replace(/\{([^{}]*)\}/g, (_block, content: string) => {
-    let next = content;
-    if (!settings.showLyrics) {
-      next = next.replace(/\s*lyrics\s+1\s+"(?:[^"\\]|\\.)*"/g, '');
-    }
-    if (!settings.showMelody) {
-      next = next.replace(/\s*lyrics\s+"(?:[^"\\]|\\.)*"/g, '');
-    }
-    return next.trim() ? `{${next.trim()}}` : '';
-  });
-  return result;
+  return result
+    .split(/(?=^[\t ]*\\track\b)/gm)
+    .map((trackBlock) => {
+      const isNumberedTrack = /\\staff\s*\{[^}]*\bnumbered\b[^}]*\}/.test(trackBlock);
+      return trackBlock.replace(/\{([^{}]*)\}/g, (_block, content: string) => {
+        let next = content;
+        if (!settings.showLyrics) {
+          next = isNumberedTrack
+            ? next.replace(/\s*lyrics(?:\s+\d+)?\s+"(?:[^"\\]|\\.)*"/g, '')
+            : next.replace(/\s*lyrics\s+1\s+"(?:[^"\\]|\\.)*"/g, '');
+        }
+        if (!settings.showMelody && !isNumberedTrack) {
+          next = next.replace(/\s*lyrics\s+"(?:[^"\\]|\\.)*"/g, '');
+        }
+        return next.trim() ? `{${next.trim()}}` : '';
+      });
+    })
+    .join('');
 }
 
 export function PlayerPage() {
@@ -108,6 +115,7 @@ export function PlayerPage() {
   const controller = useAlphaTab({
     data: displayData,
     isAlphaTex: record?.isAlphaTex ?? false,
+    renderNumberedTracks: settings?.showMelody ?? true,
     onMeta: useCallback((meta: ScoreMeta) => {
       setNativeBpm(meta.tempo ?? null);
     }, []),

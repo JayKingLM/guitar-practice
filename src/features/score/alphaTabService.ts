@@ -20,6 +20,28 @@ const ASSET_BASE = import.meta.env.BASE_URL.endsWith('/')
 export const FONT_DIRECTORY = `${ASSET_BASE}font/`;
 export const SOUND_FONT_URL = `${ASSET_BASE}soundfont/sonivox.sf2`;
 
+/**
+ * Apply narrow compatibility fixes without changing the AlphaTex saved by the user.
+ * alphaTab 1.8.4 crashes when a numbered staff contains a whole-bar `r.1` rest,
+ * while two half rests render correctly and have the same silent duration.
+ */
+export function prepareAlphaTexForRendering(tex: string) {
+  return tex
+    .split(/(?=^[\t ]*\\track\b)/gm)
+    .map((trackBlock) => {
+      if (!/\\staff\s*\{[^}]*\bnumbered\b[^}]*\}/.test(trackBlock)) {
+        return trackBlock;
+      }
+
+      return trackBlock.replace(
+        /^([\t ]*)r[\t ]*\.[\t ]*1[\t ]*\|[\t ]*(\/\/[^\r\n]*)?$/gm,
+        (_match, indentation: string, comment: string | undefined) =>
+          `${indentation}r.2 r.2 |${comment ? ` ${comment}` : ''}`,
+      );
+    })
+    .join('');
+}
+
 export interface CreateApiOptions {
   /** The element alphaTab renders into. */
   element: HTMLElement;
@@ -47,10 +69,10 @@ export function createAlphaTabApi(opts: CreateApiOptions): alphaTab.AlphaTabApi 
   fontSources.set(alphaTab.FontFileFormat.OpenType, `${FONT_DIRECTORY}Bravura.otf`);
   settings.core.smuflFontSources = fontSources;
 
-  // Display: notation + tab. This is a *digital* score, not an image.
+  // Respect each staff's explicit notation type (tabs, numbered notation, etc.).
   settings.display.scale = opts.scale ?? 1;
   settings.display.layoutMode = alphaTab.LayoutMode.Page;
-  settings.display.staveProfile = alphaTab.StaveProfile.Tab;
+  settings.display.staveProfile = alphaTab.StaveProfile.Default;
 
   // Player: real synthesized playback + animated cursor following the beat.
   settings.player.enablePlayer = true;
